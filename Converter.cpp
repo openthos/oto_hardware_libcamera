@@ -52,6 +52,67 @@ extern "C" {
 /*clip value between 0 and 255*/
 #define CLIP(value) (uint8_t)(((value)>0xFF)?0xff:(((value)<0)?0:(value)))
 
+static void yuvsquare_rotate_270(uint8_t *dst, uint8_t *src, int r)
+{
+	int i, j;
+	int width = r * 3;
+
+	for (i = 0; i < r; i++) {
+		for (j = 0; j < r; j++) {
+			uint8_t *p = src + i * width + j * 3;
+			uint8_t *q = dst + (r - j - 1) * width + i * 3;
+			*q++ = *p++;
+			*q++ = *p++;
+			*q++ = *p++;
+		}
+	}
+}
+
+static void yuyv_to_yuvsquare(uint8_t *dst, uint8_t *src, int width, int height)
+{
+	int i, j;
+	int left = (width - height);
+	int right = left + 2 * height;
+
+	width *= 2;
+	for (i = 0; i < height; i++) {
+		for (j = left; j < right; j += 4) {
+		        uint8_t *pos = src + i * width + j;
+			*dst++ = pos[0];
+			*dst++ = pos[1];
+			*dst++ = pos[3];
+			*dst++ = pos[2];
+			*dst++ = pos[1];
+			*dst++ = pos[3];
+		}
+	}
+}
+
+static void yuvsquare_to_yuyv(uint8_t *dst, uint8_t *src, int width, int height)
+{
+	int i, j;
+	int left = (width - height);
+	int right = left + 2 * height;
+
+	width *= 2;
+	for (i = 0; i < height; i++) {
+		for (j = left; j < right; j += 4) {
+		        uint8_t *pos = dst + i * width + j;
+			pos[0] = src[0];
+			pos[1] = (uint8_t)(((int)src[1] + (int)src[4]) / 2);
+			pos[2] = src[3];
+			pos[3] = (uint8_t)(((int)src[2] + (int)src[5]) / 2);
+			src += 6;
+		}
+	}
+}
+
+void yuyv_rotate_270(uint8_t *dstyuyv270, uint8_t *dstyuv270, uint8_t *dstyuv, uint8_t *src, int width, int height)
+{
+	yuyv_to_yuvsquare(dstyuv, src, width, height);
+	yuvsquare_rotate_270(dstyuv270, dstyuv, height); // assume width > height
+	yuvsquare_to_yuyv(dstyuyv270, dstyuv270, width, height);
+}
 
 /* convert yuyv to YVU420SP */
 void yuyv_to_yvu420sp(uint8_t *dst,int dstStride, int dstHeight, uint8_t *src, int srcStride, int width, int height)

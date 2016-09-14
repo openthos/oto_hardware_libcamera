@@ -1052,9 +1052,12 @@ void CameraHardware::initHeapLocked()
         }
         mRawPreviewBuffer = NULL;
 
-        mRawPreviewHeap = mRequestMemory(-1,mRawPreviewFrameSize,1,mCallbackCookie);
+        mRawPreviewHeap = mRequestMemory(-1,mRawPreviewFrameSize,5,mCallbackCookie);
         if (mRawPreviewHeap) {
             mRawPreviewBuffer = mRawPreviewHeap->data;
+            mRawPreviewBufferYUYV270 = (uint8_t *)mRawPreviewBuffer + mRawPreviewFrameSize;
+            mRawPreviewBufferYUV = mRawPreviewBufferYUYV270 + mRawPreviewFrameSize;
+            mRawPreviewBufferYUV270 = mRawPreviewBufferYUV + mRawPreviewFrameSize * 3 / 2;
         } else {
             ALOGE("Unable to allocate memory for RawPreview");
         }
@@ -1386,7 +1389,11 @@ int CameraHardware::previewThread()
                 break;
 
             case PIXEL_FORMAT_YCbCr_420_SP:
-                yuyv_to_yvu420sp(frame, width, height, rawBase, (mRawPreviewWidth<<1), cwidth, cheight);
+                // For WeChat and QQ, we need add 270 degree for their redundant 90 rotation.
+                yuyv_rotate_270(mRawPreviewBufferYUYV270, mRawPreviewBufferYUV270,
+                                mRawPreviewBufferYUV, rawBase, mRawPreviewWidth, mRawPreviewHeight);
+                yuyv_to_yvu420sp(frame, width, height, mRawPreviewBufferYUYV270,
+                                 (mRawPreviewWidth<<1), cwidth, cheight);
                 break;
 
             case PIXEL_FORMAT_YV12:

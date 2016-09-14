@@ -257,6 +257,9 @@ private:
     camera_memory_t*    mRawPreviewHeap;
     int                 mRawPreviewFrameSize;
     void*               mRawPreviewBuffer;
+    uint8_t*            mRawPreviewBufferYUV;
+    uint8_t*            mRawPreviewBufferYUV270;
+    uint8_t*            mRawPreviewBufferYUYV270;
     int                 mRawPreviewWidth;
     int                 mRawPreviewHeight;
 

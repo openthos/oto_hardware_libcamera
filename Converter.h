@@ -44,6 +44,9 @@
 #ifndef CONVERTER_H
 #define CONVERTER_H
 
+/* rotate 270 degree, assme width > height, and both are 4 multiplied, the output are the same rectangle, but only the square related with height contents data. */
+void yuyv_rotate_270(uint8_t *dstyuyv270, uint8_t *dstyuv270, uint8_t *dstyuv, uint8_t *src, int width, int height);
+
 /* Converters from camera format to android format */
 void yuyv_to_yvu420sp(uint8_t *dst,int dstStride, int dstHeight, uint8_t *src, int srcStride, int width, int height);
 
