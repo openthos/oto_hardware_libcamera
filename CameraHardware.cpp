@@ -1385,7 +1385,11 @@ int CameraHardware::previewThread()
                 // Note: Apparently, Android's "YCbCr_422_SP" is merely an arbitrary label
                 // The preview data comes in a YUV 4:2:0 format, with Y plane, then VU plane
             case PIXEL_FORMAT_YCbCr_422_SP: // This is misused by android...
-                yuyv_to_yvu420sp(frame, width, height, rawBase, (mRawPreviewWidth<<1), cwidth, cheight);
+                // For WeChat and QQ, we need add 270 degree for their redundant 90 rotation.
+                yuyv_rotate_270(mRawPreviewBufferYUYV270, mRawPreviewBufferYUV270,
+                                mRawPreviewBufferYUV, rawBase, mRawPreviewWidth, mRawPreviewHeight);
+                yuyv_to_yvu420sp(frame, width, height, mRawPreviewBufferYUYV270,
+                                 (mRawPreviewWidth<<1), cwidth, cheight);
                 break;
 
             case PIXEL_FORMAT_YCbCr_420_SP:
