@@ -18,6 +18,7 @@ extern "C" {
 #include <errno.h>
 #include <sys/ioctl.h>
 #include <sys/mman.h>
+#include <cutils/properties.h>
 #include <sys/select.h>
 #include "uvc_compat.h"
 #include "v4l2_formats.h"
@@ -36,6 +37,8 @@ extern "C" {
 #else
 #define LOG_FRAME ALOGV
 #endif
+
+#define CAMERA_USE_FAKE  "camera.use_fake"
 
 namespace android {
 
@@ -542,6 +545,11 @@ void V4L2Camera::GrabRawFrame (void *frameBuffer, int maxSize)
 {
     LOG_FRAME("V4L2Camera::GrabRawFrame: frameBuffer:%p, len:%d",frameBuffer,maxSize);
     int ret;
+
+    if(property_get_bool(CAMERA_USE_FAKE, 0)) {
+       memset(frameBuffer, 0, maxSize);
+       return;
+    }
 
     /* DQ */
     memset(&videoIn->buf,0,sizeof(videoIn->buf));
