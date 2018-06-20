@@ -308,7 +308,7 @@ bool CameraHardware::NegotiatePreviewFormat(struct preview_stream_ops* win)
 
 status_t CameraHardware::connectCamera(hw_device_t** device)
 {
-    ALOGD("CameraHardware::connectCamera");
+    ALOGD("CameraHardware::connectCamera: %s", mVideoDevice);
 
     *device = &common;
     return NO_ERROR;
@@ -324,7 +324,7 @@ status_t CameraHardware::closeCamera()
 status_t CameraHardware::getCameraInfo(struct camera_info* info, int facing,
                                        int orientation)
 {
-    ALOGD("CameraHardware::getCameraInfo");
+    ALOGV("CameraHardware::getCameraInfo");
 
     info->facing = facing;
     info->orientation = orientation;
@@ -475,7 +475,7 @@ status_t CameraHardware::startPreviewLocked()
         mParameters.getPreviewSize(&width, &height);
     }
 
-    int fps = mParameters.getPreviewFrameRate();
+    int fps = getPreviewFrameRate(mParameters);
 
     ALOGD("CameraHardware::startPreviewLocked: Open, %dx%d", width, height);
 
@@ -684,7 +684,7 @@ status_t CameraHardware::cancelPicture()
 
 status_t CameraHardware::setParameters(const char* parms)
 {
-    ALOGD("CameraHardware::setParameters");
+    ALOGV("CameraHardware::setParameters");
 
     CameraParameters params;
     String8 str8_param(parms);
@@ -722,7 +722,7 @@ status_t CameraHardware::setParameters(const char* parms)
     int w, h;
 
     params.getPreviewSize(&w, &h);
-    ALOGD("CameraHardware::setParameters: PREVIEW: Size %dx%d, %d fps, format: %s", w, h, params.getPreviewFrameRate(), params.getPreviewFormat());
+    ALOGD("CameraHardware::setParameters: PREVIEW: Size %dx%d, %d fps, format: %s", w, h, getPreviewFrameRate(params), params.getPreviewFormat());
 
     params.getPictureSize(&w, &h);
     ALOGD("CameraHardware::setParameters: PICTURE: Size %dx%d, format: %s", w, h, params.getPictureFormat());
@@ -866,8 +866,8 @@ void CameraHardware::initDefaultParameters()
     String8 fpsranges("");
     for (i = 0; i < avFps.size(); i++) {
         char descr[32];
-        int ss = avFps[i];
-        sprintf(descr,"(%d,%d)",ss,ss);
+        int ss = avFps[i] * 1000;
+        sprintf(descr, "(%d,%d)", ss, ss);
         fpsranges.append(descr);
         if (i < avFps.size() - 1) {
             fpsranges.append(",");
@@ -964,6 +964,8 @@ void CameraHardware::initDefaultParameters()
     p.set(CameraParameters::KEY_HORIZONTAL_VIEW_ANGLE, 90);
     p.set(CameraParameters::KEY_VERTICAL_VIEW_ANGLE, 90);
     p.set(CameraParameters::KEY_SUPPORTED_JPEG_THUMBNAIL_SIZES, "640x480,0x0");
+    p.set(CameraParameters::KEY_EXPOSURE_COMPENSATION, "6");
+    p.set(CameraParameters::KEY_EXPOSURE_COMPENSATION_STEP, "0.5");
 
     if (setParameters(p.flatten()) != NO_ERROR) {
         ALOGE("CameraHardware::initDefaultParameters: Failed to set default parameters.");
@@ -972,7 +974,7 @@ void CameraHardware::initDefaultParameters()
 
 void CameraHardware::initHeapLocked()
 {
-    ALOGD("CameraHardware::initHeapLocked");
+    ALOGV("CameraHardware::initHeapLocked");
 
     int preview_width, preview_height;
     int picture_width, picture_height;
@@ -1264,7 +1266,7 @@ int CameraHardware::previewThread()
 {
     ALOGV("CameraHardware::previewThread: this=%p",this);
 
-    int previewFrameRate = mParameters.getPreviewFrameRate();
+    int previewFrameRate = getPreviewFrameRate(mParameters);
 
     // Calculate how long to wait between frames.
     int delay = (int)(1000000 / previewFrameRate);
@@ -1790,6 +1792,18 @@ int CameraHardware::pictureThread()
     ALOGD("CameraHardware::pictureThread OK");
 
     return NO_ERROR;
+}
+
+int CameraHardware::getPreviewFrameRate(const CameraParameters& params)
+{
+    int min_fps = -1, max_fps = -1;
+    params.getPreviewFpsRange(&min_fps, &max_fps);
+    if (max_fps == -1) {
+        max_fps = params.getPreviewFrameRate();
+    } else {
+        max_fps /= 1000;
+    }
+    return max_fps;
 }
 
 /****************************************************************************
