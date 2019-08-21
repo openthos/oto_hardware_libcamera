@@ -10,6 +10,7 @@
 #include <utils/Log.h>
 
 extern "C" {
+#include <cutils/properties.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -28,6 +29,7 @@ extern "C" {
 #include "Converter.h"
 
 #define HEADERFRAME1 0xaf
+#define CAMERA_USE_FAKE "persist.camera.use_fake"
 
 //#define DEBUG_FRAME 0
 
@@ -53,17 +55,51 @@ V4L2Camera::~V4L2Camera()
 
 int V4L2Camera::Open (const char *device)
 {
+    char camera_node[] = "/dev/video0", buff[18], str[2] = "";
+    char persistValue[PROPERTY_VALUE_MAX];
     int ret;
+    FILE * file = NULL;
 
     /* Close the previous instance, if any */
     Close();
 
     memset(videoIn, 0, sizeof (struct vdIn));
 
-    if ((fd = open(device, O_RDWR)) == -1) {
+    if (property_get(CAMERA_USE_FAKE, persistValue, "")) {
+        if (strcmp(persistValue, "vir_camera") == 0) {
+            while (camera_node[10] < '9') {
+                char video[36] = "/sys/class/video4linux/video";
+                str[0] = camera_node[10];
+                strcat(strcat(video, str), "/name");
+                if ((file = fopen(video, "r")) == NULL) {
+                    ALOGE("ERROR opening vivid file %s: %s", video, strerror(errno));
+                    continue;
+                }
+                while (fgets(buff, sizeof(buff), file) != NULL) {
+                    if (strstr(buff, "vivid-000-vid-cap") != NULL) {
+                        fclose(file);
+                        goto stop;
+                    }
+                }
+                camera_node[10]++;
+                fclose(file);
+            }
+            stop:
+            if ((camera_node[10] == '9') || ((fd = open(camera_node, O_RDWR)) == -1)) {
+                ALOGE("ERROR opening vivid %s: %s", camera_node, strerror(errno));
+                return -1;
+            }
+        } else if (strcmp(persistValue,"phy_camera") == 0) {
+            if ((fd = open(device, O_RDWR)) == -1) {
+                ALOGE("ERROR opening V4L interface %s: %s", device, strerror(errno));
+                return -1;
+            }
+        }
+    } else if ((fd = open(device, O_RDWR)) == -1) {
         ALOGE("ERROR opening V4L interface %s: %s", device, strerror(errno));
         return -1;
     }
+
     ALOGD("Open %s OK", device);
 
     ret = ioctl (fd, VIDIOC_QUERYCAP, &videoIn->cap);
